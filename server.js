@@ -18,8 +18,14 @@ let center = {
 }
 let gyroData = [];
 let getGyroInterval = null;
+let getLocationInterval = null;
 let predictorInterval = null;
-
+let gyroRequest={
+  action:'gyro'
+}
+let locationRequest={
+  action:'location'
+}
 
 let markerSend = (ws) =>{
     markers=[];
@@ -47,7 +53,7 @@ if(ws.readyState != ws.CLOSED){
 }
 
 let centerSend = (ws)=>{
-
+  // console.log('sending center:', center);
     let obj = {
         action:'getCenter',
         center:center
@@ -122,19 +128,43 @@ app.ws('/lookout', (ws, req) => {
               latitude:appObj.latitude,
               longitude:appObj.longitude
             }
+            db.put(JSON.stringify(hazard), JSON.stringify(hazard), function (err) {
+                if (err) return console.log('Ooops!', err);
+            } );
+
+            // console.log(hazard.type);
         } else if(appObj.action =='start'){
+          console.log('starting');
+
             getGyroInterval = setInterval( ()=>{
-              if(ws.readyState != ws.CLOSED)
-                ws.send('gimme gyros brether');
+              if(ws.readyState != ws.CLOSED){
+                ws.send(JSON.stringify(gyroRequest));
+                // console.log('asking data');
+              }
             },100);
-        } else if(appObj.action =='gyrolocation'){
+
+            getLocationInterval = setInterval( ()=>{
+              if(ws.readyState != ws.CLOSED){
+                ws.send(JSON.stringify(locationRequest));
+                // console.log('asking data');
+              }
+            },5000);
+        } else if(appObj.action =='gyro'){
             let {x,y,z} = appObj;
             let magnitude =  Math.sqrt( x*x +y*y + z*z);
             gyroData.push(magnitude);
-            console.log(magnitude);
-            let {latitude,longitude} = appObj;
-            center.latitude = latitude;
-            center.longitude = longitude;
+        }else if(appObj.action =='location'){
+             let {latitude,longitude} = appObj;
+             center.latitude = latitude;
+             center.longitude = longitude;
+             let LineCoordinate = {
+               latitude:latitude,
+               longitude:longitude,
+               type:'ok'
+             }
+             dblines.put(JSON.stringify(LineCoordinate), JSON.stringify(LineCoordinate), function (err) {
+               if (err) return console.log('Ooops!', err);
+             } );
         }
 
     })
@@ -142,7 +172,9 @@ app.ws('/lookout', (ws, req) => {
     ws.on('close', () => {
         console.log('WebSocket lookout was closed');
         clearInterval(getGyroInterval);
+        clearInterval(getLocationInterval);
         getGyroInterval = null;
+        getLocationInterval = null;
     })
 
 })
@@ -187,5 +219,5 @@ app.ws('/predictor', (ws, req) => {
 
 
 app.listen(process.env.PORT || 3006, () => {
-    console.log(`Hello Gang, Websockets Server Running on PORT ${process.env.PORT}`);
+    console.log(`Hello Gang, Websockets Server Running on PORT ${process.env.PORT||3006}`);
 })
