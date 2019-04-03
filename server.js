@@ -186,6 +186,6 @@ app.ws('/predictor', (ws, req) => {
 })
 
 
-app.listen(3006, () => {
-    console.log("Hello Gang, Websockets Server Running on PORT 3006");
+app.listen(process.env.PORT || 3006, () => {
+    console.log(`Hello Gang, Websockets Server Running on PORT ${process.env.PORT}`);
 })
